@@ -68,6 +68,7 @@ Sub ReadFeatureFile(strFileName)
 		If Line<>"" Then
 			Select Case Split(Line," ")(0)
 				Case "Feature:":
+					Wscript.Echo "Running feature: " & Split(Line," ")(1)
 				Case "Given":
 								gCurrentStep = "Given"
 								ExecuteStep(Line)
@@ -110,7 +111,7 @@ Sub ExecuteStep(StrStep)
 	Func=GenerateFuncWithArgs(StrStep)
 	Execute Func
 	If Err.Number=13 Then
-		msgbox "Sub "& GenerateFuncDefWithArgs(StrStep) &vbLf &vbTab &"'Your code here" &vbLf& "End Sub"
+		Wscript.Echo "Sub "& GenerateFuncDefWithArgs(StrStep) &vbLf &vbTab &"'Your code here" &vbLf& "End Sub"
 	End If
 	On Error Goto 0
 End Sub
