@@ -1,13 +1,15 @@
-'**********************************************************************************
-' The functions are part of cucumber.vbs which is the core execution driver for the feature files
-'
-'
-'
+
 
 
 Public gCurrentStep
-
-
+'Nov 1
+Public sUndefinedSnippets
+'Nov 1
+Public iUndefined, iSteps,iScenarios,iUndefinedForThisScenario,iUndefinedScenarios,sResultsAll,sResultsScenario
+iUndefined=0
+iSteps=0
+'Nov 1
+sUndefinedSnippets= vbLf&"You can implement step definitions for undefined steps with these snippets:" &vbLf
 'Function to include files
 Sub includeFile(fSpec)
     With CreateObject("Scripting.FileSystemObject")
@@ -35,6 +37,7 @@ Private Sub ReadAndRunFeatures
 		
 	For Each Item In Folders.Files
 		If InStr(1,Item.Name,".feature")>0 Then
+		Wscript.Echo Item.Name
 			'Run a feature
 			ReadFeatureFile Item.Name
 		End if		
@@ -68,7 +71,9 @@ Sub ReadFeatureFile(strFileName)
 		If Line<>"" Then
 			Select Case Split(Line," ")(0)
 				Case "Feature:":
-					Wscript.Echo "Running feature: " & Split(Line," ")(1)
+					'Nov 1 
+					Wscript.Echo Line
+					sResultFeed=sResultFeed &vbLf & "<div class='feature_heading'>"& Line &"</div>"
 				Case "Given":
 								gCurrentStep = "Given"
 								ExecuteStep(Line)
@@ -85,6 +90,13 @@ Sub ReadFeatureFile(strFileName)
 								Line = gCurrentStep&" "&Right(Line,Len(Line)-3)
 								ExecuteStep(Line)
 				Case "Scenario:":
+					Wscript.Echo vbLf & " " & Line
+					iScenarios=iScenarios+1
+					If iUndefinedForThisScenario>0 then
+						iUndefinedScenarios=iUndefinedScenarios+1
+					End If
+					iUndefinedForThisScenario=0
+					sResultsAll=sResultsAll &vbLf & "<div class='scenario_heading'>"& Line &"</div>"
 				Case "Background:":
 				Case "Scenario Outline:":
 			End Select
@@ -107,11 +119,19 @@ End Sub
 
 'Execute the steps or generate templates
 Sub ExecuteStep(StrStep)
+	iSteps=iSteps+1
+	'Nov 1 
+	Wscript.Echo "  " & StrStep
 	On Error Resume Next
 	Func=GenerateFuncWithArgs(StrStep)
 	Execute Func
 	If Err.Number=13 Then
-		Wscript.Echo "Sub "& GenerateFuncDefWithArgs(StrStep) &vbLf &vbTab &"'Your code here" &vbLf& "End Sub"
+	iUndefined=iUndefined+1
+	iUndefinedForThisScenario=iUndefinedForThisScenario+1
+		'Nov 1
+		sUndefinedSnippets=sUndefinedSnippets &vbLf& "Sub "& GenerateFuncDefWithArgs(StrStep) &vbLf &vbTab &"'Your code here" &vbLf& "End Sub" &vbLf
+		'Wscript.Echo &vbLf& "Sub "& GenerateFuncDefWithArgs(StrStep) &vbLf &vbTab &"'Your code here" &vbLf& "End Sub"
+		sResultFeed=sResultFeed &vbLf & "<div class='step_undefined'>"& strStep &"</div>"
 	End If
 	On Error Goto 0
 End Sub
@@ -158,7 +178,59 @@ Function GenerateFuncWithArgs(StrStep)
 	
 End Function
 
+'Nov 1
+Function GenerateResultFile(sResultFeed)
 
+	Const ForReading = 1
+	Const ForWriting = 2
+	
+	Set objFSO = CreateObject("Scripting.FileSystemObject")
+	Set objFile = objFSO.OpenTextFile("ResultTemplate.html", ForReading)
+	strText = objFile.ReadAll
+	objFile.Close
+	strNewText = Replace(strText, "<result>", sResultFeed)
+	objFSO.CreateTextFile("Result.html")
+	Set objFile = objFSO.OpenTextFile("Result.html", ForWriting)
+	objFile.WriteLine strNewText
+	objFile.Close
+
+
+End Function
+
+GenerateResultFile(sResultsAll)
+
+If iUndefinedForThisScenario>0 then
+	iUndefinedScenarios=iUndefinedScenarios+1
+End If
+
+
+WScript.Echo vbLf 
+
+If iUndefinedScenarios>0 then
+	'Nov 1
+	If iScenarios>0 Then
+		WScript.Echo  iScenarios & " scenarios (" & iUndefinedScenarios & " undefined)"
+	Else
+		WScript.Echo iScenarios & " scenario  (" & iUndefinedScenarios & " undefined)"
+	End If 
+Else
+	'Nov 1
+	If iScenarios>0 Then
+		WScript.Echo  iScenarios & " scenarios"
+	Else
+		WScript.Echo iScenarios & " scenario"
+	End If 
+End If
+
+If iUndefined>0 Then
+	WScript.Echo  iSteps & " steps ("&iUndefined & " undefined)"
+Else
+	WScript.Echo iSteps & " steps "
+End If
+'Nov 1
+If iUndefined>0 Then
+	WScript.Echo sUndefinedSnippets
+End If
 
 a=Split(s,"""")
 For i=1 To UBound(a) Step 2
